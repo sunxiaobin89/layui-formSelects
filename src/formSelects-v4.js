@@ -1,7 +1,7 @@
 /**
  * name: formSelects
  * 基于Layui Select多选
- * version: 4.0.0.0622
+ * version: 4.0.0.0713
  * http://sun.faysunshine.com/layui/formSelects-v4/dist/formSelects-v4.js
  */
 (function(layui, window, factory) {
@@ -17,7 +17,7 @@
 		window.formSelects = factory();
 	}
 })(typeof layui == 'undefined' ? null : layui, window, function() {
-	let v = '4.0.0.0622',
+	let v = '4.0.0.0713',
 		NAME = 'xm-select',
 		PNAME = 'xm-select-parent',
 		INPUT = 'xm-select-input',
@@ -25,6 +25,8 @@
 		THIS = 'xm-select-this',
 		LABEL = 'xm-select-label',
 		SEARCH = 'xm-select-search',
+		SEARCH_TYPE = 'xm-select-search-type',
+		SHOW_COUNT = 'xm-select-show-count',
 		CREATE = 'xm-select-create',
 		CREATE_LONG = 'xm-select-create-long',
 		MAX = 'xm-select-max',
@@ -37,6 +39,7 @@
 		RADIO = 'xm-select-radio',
 		LINKAGE= 'xm-select-linkage',
 		DL = 'xm-select-dl',
+		DD_HIDE = 'xm-select-hide',
 		HIDE_INPUT = 'xm-hide-input',
 		SANJIAO = 'xm-select-sj',
 		ICON_CLOSE = 'xm-icon-close',
@@ -46,8 +49,9 @@
 		FORM_NONE = 'xm-select-none',
 		FORM_EMPTY = 'xm-select-empty',
 		FORM_INPUT = 'xm-input',
+		FORM_DL_INPUT = 'xm-dl-input',
 		FORM_SELECT_TIPS = 'xm-select-tips',
-		CHECKBOX_YES = 'xm-icon-yes',
+		CHECKBOX_YES = 'iconfont',
 		CZ = 'xm-cz',
 		CZ_GROUP = 'xm-cz-group',
 		TIPS = '请选择',
@@ -78,7 +82,6 @@
 			success: null,
 			error: null,
 			beforeSearch: null,
-			clearInput: false,
 		},
 		quickBtns = [
 			{icon: 'iconfont icon-quanxuan', name: '全选', click: function(id, cm){
@@ -120,73 +123,39 @@
 				direction: 'auto',
 				height: null,
 				isEmpty: false,
-				btns: [quickBtns[0], quickBtns[1], quickBtns[2]]
+				btns: [quickBtns[0], quickBtns[1], quickBtns[2]],
+				searchType: 0,
+				create: (id, name) => {
+					return Date.now();
+				},
+				template: (name, value, selected, disabled) => {
+					return name;
+				},
+				showCount: 0,
+				isCreate: false,
+				placeholder: TIPS,
+				clearInput: false,
 			};
 			this.select = null;
 			this.values = [];
-			$.extend(true, this.config, options);
+			$.extend(this.config, options);
 		};
 	
 	//一些简单的处理方法
 	let Common = function(){
-		this.loadingCss();
 		this.appender();
 		this.init();
 		this.on();
 		this.initVal();
 		this.onreset();
-		this.listening();
 	};
 	
 	Common.prototype.appender = function(){//针对IE做的一些拓展
-		if (!Array.prototype.map) {
-		    Array.prototype.map = function(callback, thisArg) {
-		        var T, A, k, 
-		        	O = Object(this),
-		        	len = O.length >>> 0;
-		        if (thisArg) {
-		            T = thisArg;
-		        }
-		        A = new Array(len);
-		        k = 0;
-		        while(k < len) {
-		            var kValue, mappedValue;
-		            if (k in O) {
-		                kValue = O[ k ];
-		                mappedValue = callback.call(T, kValue, k, O);
-		                A[ k ] = mappedValue;
-		            }
-		            k++;
-		        }
-		        return A;
-		    };
-		}
-		if ( !Array.prototype.forEach ) {
-		    Array.prototype.forEach = function forEach( callback, thisArg ) {
-		        var T, k;
-		        if ( this == null ) {
-		            throw new TypeError( "this is null or not defined" );
-		        }
-		        var O = Object(this);
-		        var len = O.length >>> 0;
-		        if ( typeof callback !== "function" ) {
-		            throw new TypeError( callback + " is not a function" );
-		        }
-		        if ( arguments.length > 1 ) {
-		            T = thisArg;
-		        }
-		        k = 0;
-		        while( k < len ) {
-		            var kValue;
-		            if ( k in O ) {
+		//拓展Array map方法
+		if(!Array.prototype.map){Array.prototype.map=function(i,h){var b,a,c,e=Object(this),f=e.length>>>0;if(h){b=h}a=new Array(f);c=0;while(c<f){var d,g;if(c in e){d=e[c];g=i.call(b,d,c,e);a[c]=g}c++}return a}};
 		
-		                kValue = O[ k ];
-		                callback.call( T, kValue, k, O );
-		            }
-		            k++;
-		        }
-		    };
-		}
+		//拓展Array foreach方法
+		if(!Array.prototype.forEach){Array.prototype.forEach=function forEach(g,b){var d,c;if(this==null){throw new TypeError("this is null or not defined")}var f=Object(this);var a=f.length>>>0;if(typeof g!=="function"){throw new TypeError(g+" is not a function")}if(arguments.length>1){d=b}c=0;while(c<a){var e;if(c in f){e=f[c];g.call(d,e,c,f)}c++}}};
 	}
 	
 	Common.prototype.init = function(target){
@@ -207,6 +176,9 @@
 				height = othis.attr(HEIGHT),
 				formname = othis.attr('name'),
 				layverify = othis.attr('lay-verify'),
+				layverType = othis.attr('lay-verType'),
+				searchtype = othis.attr(SEARCH_TYPE) == 'dl' ? 1 : 0,
+				showCount = othis.attr(SHOW_COUNT) - 0,
 				placeholder = optionsFirst ? (
 						optionsFirst.value ? TIPS : (optionsFirst.innerHTML || TIPS)
 					) : TIPS,
@@ -216,28 +188,80 @@
 						val: option.value,
 					}
 				}),
-				fs = new FormSelects();
-				data[id] = fs;
+				fs = new FormSelects(isRadio ? {btns: [quickBtns[1]]} : {});
+			
+			let hisFs = data[id];
+			data[id] = fs;
+			
+			fs.values = value;
+			fs.config.init = value.concat([]);
+			fs.config.name = id;
+			fs.config.disabled = disabled;
+			fs.config.max = max;
+			fs.config.isSearch = isSearch;
+			fs.config.searchUrl = searchUrl;
+			fs.config.isCreate = isCreate;
+			fs.config.radio = isRadio;
+			fs.config.skin = skin;
+			fs.config.direction = direction;
+			fs.config.height = height;
+			fs.config.searchType = searchtype;
+			fs.config.formname = formname;
+			fs.config.layverify = layverify;
+			fs.config.layverType = layverType;
+			fs.config.searchType = searchtype;
+			fs.config.showCount = showCount;
+			fs.config.placeholder = placeholder;
+			
+			if(hisFs){
+				$.extend(true, fs.config, hisFs.config);
+				disabled = fs.config.disabled;
+				max = fs.config.max;
+				isSearch = fs.config.isSearch;
+				searchUrl = fs.config.searchUrl;
+				isRadio = fs.config.radio;
+				skin = fs.config.skin;
+				height = fs.config.height;
+				formname = fs.config.formname;
+				layverify = fs.config.layverify;
+				layverType = fs.config.layverType;
+				showCount = fs.config.showCount;
+				placeholder = fs.config.placeholder;
+				
+				if(hisFs.config.init){
+					fs.values = hisFs.config.init.map(item => {
+						if(typeof item == 'object'){
+							return item;
+						}
+						return {
+							name: othis.find(`option[value="${item}"]`).text(),
+							val: item
+						}
+					}).filter(item => {
+						return item.name;
+					});
+					fs.config.init = fs.values.concat([]);
+				}
+			}
+			
+			if(isNaN(showCount) || showCount <= 0){
+				showCount = 19921012;
+			}
+			
 			//先取消layui对select的渲染
 			hasRender[0] && hasRender.remove();
-			
-			//包裹一个div
-			othis.wrap(`<div class="${PNAME}"></div>`);
 
 			//构造渲染div
 			let dinfo = this.renderSelect(id, placeholder, select); 
-			let heightStyle = height ? `style="height: ${height};"` : '';
-			let inputHtml =  height ? [
-				`<div class="${LABEL}" style="margin-right: 50px;"></div>`,
-				`<input type="text" fsw class="${FORM_INPUT} ${INPUT}" ${isSearch ? '' : 'style="display: none;"'} autocomplete="off" debounce="0" style="position: absolute;right: 10px;top: 3px;"/>`
-			] : [
+			let heightStyle = !height || height == 'auto' ? '' : `xm-hg style="height: 34px;"`;
+			let inputHtml = [
 				`<div class="${LABEL}">`,
 					`<input type="text" fsw class="${FORM_INPUT} ${INPUT}" ${isSearch ? '' : 'style="display: none;"'} autocomplete="off" debounce="0" />`,
 				`</div>`
 			];
 			let reElem =
 				$(`<div class="${FORM_SELECT}" ${SKIN}="${skin}">
-					<input type="hidden" class="${HIDE_INPUT}" value="" name="${formname}" lay-verify="${layverify}"/>
+					<input class="${HIDE_INPUT}" value="" name="${formname}" lay-verify="${layverify}" lay-verType="${layverType}" type="text" style="position: absolute;bottom: 0; z-index: -1;width: 100%; height: 100%; border: none; opacity: 0;"/>
 					<div class="${FORM_TITLE} ${disabled ? DIS : ''}">
 						<div class="${FORM_INPUT} ${NAME}" ${heightStyle}>
 							${inputHtml.join('')}
@@ -250,87 +274,101 @@
 					</div>
 					<dl xid="${id}" class="${DL} ${isRadio ? RADIO:''}">${dinfo}</dl>
 				</div>`);
-			othis.after(reElem);
-			fs.select = othis.remove();//去掉layui.form.render
-			fs.values = value;
-			fs.config.name = id;
-			fs.config.init = value.concat([]);
-			fs.config.direction = direction;
-			fs.config.height = height;
-			fs.config.radio = isRadio;
-			
-			if(max){//有最大值
-				fs.config.max = max;
+				
+			if(hisFs){
+				$(`dl[xid="${id}"]`).parents(`.${PNAME}`).html(reElem);		
+				fs.select = othis;
+			}else{
+				//包裹一个div
+				othis.wrap(`<div class="${PNAME}" FS_ID="${id}"></div>`);
+				othis.after(reElem);
+				fs.select = othis.remove();
 			}
 			
 			//如果可搜索, 加上事件
 			if(isSearch){
-				reElem.find(`.${INPUT}`).on('input propertychange', (e) => {
-					let input = e.target,
-						inputValue = $.trim(input.value),
-						keyCode = e.keyCode;
-					if(keyCode === 9 || keyCode === 13 || keyCode === 37 || keyCode === 38 || keyCode === 39 || keyCode === 40) {
-						return false;
-					}
-					
-					//过滤一下tips
-					this.changePlaceHolder($(input));
-					
-					let ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
-					searchUrl = ajaxConfig.searchUrl || searchUrl;
-					//如果开启了远程搜索
-					if(searchUrl){
-						if(ajaxConfig.searchVal){
-							inputValue = ajaxConfig.searchVal;
-							ajaxConfig.searchVal = '';
-						}
-						if(!ajaxConfig.beforeSearch || (ajaxConfig.beforeSearch && ajaxConfig.beforeSearch instanceof Function && ajaxConfig.beforeSearch(id, searchUrl, inputValue))){
-							let delay = ajaxConfig.delay;
-							if(ajaxConfig.first){
-								ajaxConfig.first = false;
-								delay = 10;
-							}
-							clearTimeout(fs.clearid);
-							fs.clearid = setTimeout(() => {
-								reElem.find(`dl > *:not(.${FORM_SELECT_TIPS})`).remove();
-								reElem.find(`dd.${FORM_NONE}`).addClass(FORM_EMPTY).text('请求中');
-								this.ajax(id, searchUrl, inputValue, false, null, true);
-							}, delay);
-						}
-					}else{
-						reElem.find(`dl .layui-hide`).removeClass('layui-hide');
-						//遍历选项, 选择可以显示的值
-						reElem.find(`dl dd:not(.${FORM_SELECT_TIPS})`).each((idx, item) => {
-							let _item = $(item);
-							let searchFun = data[id].config.filter || events.filter[id];
-							if(searchFun && searchFun(id, inputValue, {
-								name: _item.find('span').text(),
-								val: _item.attr('lay-value')
-							}, _item.hasClass(DISABLED)) == true){
-								_item.addClass('layui-hide');
-							}
-						});
-						//控制分组名称
-						reElem.find('dl dt').each((index, item) => {
-							if(!$(item).nextUntil('dt', ':not(.layui-hide)').length) {
-								$(item).addClass('layui-hide');
-							}
-						});
-						//动态创建
-						this.create(id, isCreate, inputValue);
-						let shows = reElem.find(`dl dd:not(.${FORM_SELECT_TIPS}):not(.layui-hide)`);
-						if(!shows.length){
-							reElem.find(`dd.${FORM_NONE}`).addClass(FORM_EMPTY).text('无匹配项');
-						}else{
-							reElem.find(`dd.${FORM_NONE}`).removeClass(FORM_EMPTY);
-						}
-					}
+				ajaxs[id] = $.extend(true, {}, ajax, {
+					searchUrl: searchUrl
+				});
+				$(document).on('input', `div.${PNAME}[FS_ID="${id}"] .${INPUT}`, (e) => {
+					this.search(id, e, searchUrl);
 				});
 				if(searchUrl){//触发第一次请求事件
 					this.triggerSearch(reElem, true);
 				}
+			}else{//隐藏第二个dl
+				reElem.find(`dl dd.${FORM_DL_INPUT}`).css('display', 'none');
 			}
 		});
+	}
+	
+	Common.prototype.search = function(id, e, searchUrl, call){
+		let input;
+		if(call){
+			input = call;
+		}else{
+			input = e.target;
+			let keyCode = e.keyCode;
+			if(keyCode === 9 || keyCode === 13 || keyCode === 37 || keyCode === 38 || keyCode === 39 || keyCode === 40) {
+				return false;
+			}
+		}
+		let inputValue = $.trim(input.value);
+		//过滤一下tips
+		this.changePlaceHolder($(input));
+		
+		let ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
+		searchUrl = ajaxConfig.searchUrl || searchUrl;
+		let fs = data[id],
+			isCreate = fs.config.isCreate,
+			reElem = $(`dl[xid="${id}"]`).parents(`.${FORM_SELECT}`);
+		//如果开启了远程搜索
+		if(searchUrl){
+			if(ajaxConfig.searchVal){
+				inputValue = ajaxConfig.searchVal;
+				ajaxConfig.searchVal = '';
+			}
+			if(!ajaxConfig.beforeSearch || (ajaxConfig.beforeSearch && ajaxConfig.beforeSearch instanceof Function && ajaxConfig.beforeSearch(id, searchUrl, inputValue))){
+				let delay = ajaxConfig.delay;
+				if(ajaxConfig.first){
+					ajaxConfig.first = false;
+					delay = 10;
+				}
+				clearTimeout(fs.clearid);
+				fs.clearid = setTimeout(() => {
+					reElem.find(`dl > *:not(.${FORM_SELECT_TIPS})`).remove();
+					reElem.find(`dd.${FORM_NONE}`).addClass(FORM_EMPTY).text('请求中');
+					this.ajax(id, searchUrl, inputValue, false, null, true);
+				}, delay);
+			}
+		}else{
+			reElem.find(`dl .${DD_HIDE}`).removeClass(DD_HIDE);
+			//遍历选项, 选择可以显示的值
+			reElem.find(`dl dd:not(.${FORM_SELECT_TIPS})`).each((idx, item) => {
+				let _item = $(item);
+				let searchFun = data[id].config.filter || events.filter[id];
+				if(searchFun && searchFun(id, inputValue, {
+					name: _item.find('span').attr('name'),
+					val: _item.attr('lay-value')
+				}, _item.hasClass(DISABLED)) == true){
+					_item.addClass(DD_HIDE);
+				}
+			});
+			//控制分组名称
+			reElem.find('dl dt').each((index, item) => {
+				if(!$(item).nextUntil('dt', `:not(.${DD_HIDE})`).length) {
+					$(item).addClass(DD_HIDE);
+				}
+			});
+			//动态创建
+			this.create(id, isCreate, inputValue);
+			let shows = reElem.find(`dl dd:not(.${FORM_SELECT_TIPS}):not(.${DD_HIDE})`);
+			if(!shows.length){
+				reElem.find(`dd.${FORM_NONE}`).addClass(FORM_EMPTY).text('无匹配项');
+			}else{
+				reElem.find(`dd.${FORM_NONE}`).removeClass(FORM_EMPTY);
+			}
+		}
 	}
 	
 	Common.prototype.isArray = function(obj){
@@ -342,16 +380,15 @@
 			reElem = $(reElem);
 			let id = reElem.find('dl').attr('xid')
 			if((id && data[id] && data[id].config.isEmpty) || isCall){
-				let obj_caller = reElem.find(`.${INPUT}`)[0];
-				if(document.createEventObject) {
-				    obj_caller.fireEvent("onchange");
-				} else {
-				    var evt = document.createEvent("HTMLEvents");
-				    evt.initEvent("input", false, true);
-				    obj_caller.dispatchEvent(evt);
-				}
+				this.search(id, null, null, data[id].config.searchType == 0 ? reElem.find(`.${LABEL} .${INPUT}`) : reElem.find(`dl .${FORM_DL_INPUT} .${INPUT}`));
 			}
 		});
+	}
+	
+	Common.prototype.clearInput = function(id){
+		let div = $(`.${PNAME}[fs_id="${id}"]`);
+		let input = data[id].config.searchType == 0 ? div.find(`.${LABEL} .${INPUT}`) : div.find(`dl .${FORM_DL_INPUT} .${INPUT}`);
+		input.val('');
 	}
 	
 	Common.prototype.ajax = function(id, searchUrl, inputValue, isLinkage, linkageWidth, isSearch){
@@ -359,11 +396,11 @@
 		if(!reElem[0] || !searchUrl){
 			return ;
 		}
-		
 		let ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
 		let ajaxData = $.extend(true, {}, ajaxConfig.data);
 		ajaxData[ajaxConfig.searchName] = inputValue;
-		ajaxData['_'] = Date.now();
+		//是否需要对ajax添加随机时间
+		//ajaxData['_'] = Date.now();
 		$.ajax({
 			type: ajaxConfig.type,
 			headers: ajaxConfig.header,
@@ -437,14 +474,12 @@
 				groupDiv.push(`</div>`);
 				html = html.concat(groupDiv);
 			});
-//			<li class="xm-select-this xm-select-active"><span>123</span></li>
 			html.push('<div style="clear: both; height: 288px;"></div>');
 			html.push('</div>');
 			reElem.find('dl').html(html.join(''));
 			reElem.find(`.${INPUT}`).css('display', 'none');//联动暂时不支持搜索
 			return;
 		}
-		
 		
 		let reElem = $(`.${PNAME} dl[xid="${id}"]`).parents(`.${FORM_SELECT}`);
 		let ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
@@ -496,23 +531,25 @@
 		if(isCreate && inputValue){
 			let fs = data[id],
 				dl = $(`[xid="${id}"]`),
-				tips=  dl.find(`dd.${FORM_SELECT_TIPS}:first`),
+				tips=  dl.find(`dd.${FORM_SELECT_TIPS}.${FORM_DL_INPUT}`),
 				tdd = null,
 				temp = dl.find(`dd.${TEMP}`);
 			dl.find(`dd:not(.${FORM_SELECT_TIPS}):not(.${TEMP})`).each((index, item) => {
-				if(inputValue == $(item).find('span').text()){
+				if(inputValue == $(item).find('span').attr('name')){
 					tdd = item;
 				}
 			});
 			if(!tdd){//如果不存在, 则创建
+				let val = fs.config.create(id, inputValue);
 				if(temp[0]){
-					temp.attr('lay-value', inputValue);
+					temp.attr('lay-value', val);
 					temp.find('span').text(inputValue);
-					temp.removeClass('layui-hide');
+					temp.find('span').attr("name", inputValue);
+					temp.removeClass(DD_HIDE);
 				}else{
-					tips.after($(this.createDD({
+					tips.after($(this.createDD(id, {
 						innerHTML: inputValue,
-						value: Date.now(),
+						value: val
 					}, `${TEMP} ${CREATE_LONG}`)));
 				}
 			}
@@ -521,11 +558,13 @@
 		}
 	}
 	
-	Common.prototype.createDD = function(item, clz){
+	Common.prototype.createDD = function(id, item, clz){
+		let name = $.trim(item.innerHTML);
+		let template = data[id].config.template(name, item.value, item.selected, item.disabled);
 		return `<dd lay-value="${item.value}" class="${item.disabled ? DISABLED : ''} ${clz ? clz : ''}">
-					<div class="xm-unselect xm-form-checkbox ${item.disabled ? 'layui-checkbox-disbaled ' + DISABLED : ''}" lay-skin="primary">
-						<span>${$.trim(item.innerHTML)}</span>
+					<div class="xm-unselect xm-form-checkbox ${item.disabled ? DISABLED : ''}">
 						<i class="${CHECKBOX_YES}"></i>
+						<span name="${name}">${template}</span>
 					</div>
 				</dd>`;
 	}
@@ -547,16 +586,20 @@
 	}
 	
 	Common.prototype.renderSelect = function(id, tips, select){
-		
 		let arr = [];
 		if(data[id].config.btns.length){
 			setTimeout(() => {
 				let dl = $(`dl[xid="${id}"]`);
+				dl.parents(`.${FORM_SELECT}`).attr(SEARCH_TYPE, data[id].config.searchType);
 				dl.find(`.${CZ_GROUP}`).css('max-width', `${dl.prev().width() - 54}px`);
 			}, 10)
 			arr.push([
 				`<dd lay-value="" class="${FORM_SELECT_TIPS}" style="background-color: #FFF!important;">`,
-				this.renderBtns(id, null, '30px'),
+					this.renderBtns(id, null, '30px'),
+				`</dd>`,
+				`<dd lay-value="" class="${FORM_SELECT_TIPS} ${FORM_DL_INPUT}" style="background-color: #FFF!important;">`,
+					`<i class="iconfont icon-sousuo"></i>`,
+					`<input type="text" class="${FORM_INPUT} ${INPUT}" placeholder="请搜索"/>`,
 				`</dd>`
 			].join(''));
 		}else{
@@ -564,10 +607,12 @@
 		}
 		if(this.isArray(select)){
 			$(select).each((index, item) => {
-				if(item.type === 'optgroup') {
-					arr.push(`<dt>${item.name}</dt>`);
-				} else {
-					arr.push(this.createDD(item));
+				if(item){
+					if(item.type && item.type === 'optgroup') {
+						arr.push(`<dt>${item.name}</dt>`);
+					} else {
+						arr.push(this.createDD(id, item));
+					}
 				}
 			});
 		}else{
@@ -578,7 +623,7 @@
 				if(item.tagName.toLowerCase() === 'optgroup') {
 					arr.push(`<dt>${item.label}</dt>`);
 				} else {
-					arr.push(this.createDD(item));
+					arr.push(this.createDD(id, item));
 				}
 			});
 		}
@@ -592,26 +637,70 @@
 		
 		$(document).on('click', (e) => {
 			if(!$(e.target).parents(`.${FORM_TITLE}`)[0]){//清空input中的值
-				$(`.${INPUT}`).val('');
-				$(`.${PNAME} dl .layui-hide`).removeClass('layui-hide');
+				$(`.${PNAME} dl .${DD_HIDE}`).removeClass(DD_HIDE);
+				$(`.${PNAME} dl dd.${FORM_EMPTY}`).removeClass(FORM_EMPTY);
 				$(`.${PNAME} dl dd.${TEMP}`).remove();
-				this.triggerSearch();
+				$.each(data, (key, fs) => {
+					this.clearInput(key);
+					if(!fs.values.length){
+						this.changePlaceHolder($(`div[FS_ID="${key}"] .${LABEL}`));
+					}
+				});
 			}
 			$(`.${PNAME} .${FORM_SELECTED}`).removeClass(FORM_SELECTED);
 		});
-		
+	}
+	
+	Common.prototype.calcLabelLeft = function(label, w, call){
+		let pos = this.getPosition(label[0]);
+    	pos.y = pos.x + label[0].clientWidth;
+    	let left = label[0].offsetLeft;
+    	if(!label.find('span').length){
+    		left = 0;
+    	}else if(call){//校正归位
+    		let span = label.find('span:last');
+    		span.css('display') == 'none' ? (span = span.prev()[0]) : (span = span[0]);
+			let spos = this.getPosition(span);
+			spos.y = spos.x + span.clientWidth;
+			
+			if(spos.y > pos.y){
+				left = left - (spos.y - pos.y) - 5;
+			}else{
+				left = 0;
+			}
+    	}else{
+	    	if(w < 0){
+				let span = label.find(':last');
+				span.css('display') == 'none' ? (span = span.prev()[0]) : (span = span[0]);
+				let spos = this.getPosition(span);
+				spos.y = spos.x + span.clientWidth;
+				if(spos.y > pos.y){
+					left -= 10;
+				}
+	    	}else{
+				if(left < 0){
+					left += 10;
+				}
+				if(left > 0){
+					left = 0;
+				}
+	    	}
+    	}
+    	label.css('left', left + 'px');
 	}
 	
 	Common.prototype.one = function(target){//一次性事件绑定
-		$(target ? target : document).find(`.${FORM_TITLE}`).off('click').on('click', (e) => {
+		$(target ? target : document).off('click', `.${FORM_TITLE}`).on('click', `.${FORM_TITLE}`, (e) => {
 			let othis = $(e.target),
 				title = othis.is(FORM_TITLE) ? othis : othis.parents(`.${FORM_TITLE}`),
 				dl = title.next(),
 				id = dl.attr('xid');
 			
 			//清空非本select的input val
-			$(`dl[xid]`).not(dl).prev().find(`.${INPUT}`).val('');
-			$(`dl[xid]`).not(dl).find(`dd.layui-hide`).removeClass('layui-hide');
+			$(`dl[xid]`).not(dl).each((index, item) => {
+				this.clearInput($(item).attr('xid'));
+			});
+			$(`dl[xid]`).not(dl).find(`dd.${DD_HIDE}`).removeClass(DD_HIDE);
 			
 			//如果是disabled select
 			if(title.hasClass(DIS)){
@@ -666,6 +755,9 @@
 				othis = othis.is('li') ? othis : othis.parents('li');
 				let group = othis.parents('.xm-select-linkage-group'),
 					id = othis.parents('dl').attr('xid');
+				if(!id){
+					return false;
+				}
 				//激活li
 				group.find('.xm-select-active').removeClass('xm-select-active');
 				othis.addClass('xm-select-active');
@@ -687,11 +779,6 @@
 							name: othis.find('span').text(),
 							val: othis.attr('value')
 						}
-						/*isAdd ? (
-							othis.addClass('xm-select-this')
-						) : (
-							!othis.parent('.xm-select-linkage-group').next().find(`li[pid="${othis.attr('value')}"].xm-select-this`).length && othis.removeClass('xm-select-this')
-						);*/	
 						othis = othis.parents('.xm-select-linkage-group').prev().find(`li[value="${othis.attr('pid')}"]`);			
 					}while(othis.length);
 					vals.reverse();
@@ -708,9 +795,20 @@
 					nextGroup.removeClass('xm-select-linkage-hide');
 				}
 				return false;
-			}//xm-select-this xm-select-active
+			}
 			
-			if(othis.is('dt') || othis.is('dl')){
+			if(othis.is('dl')){
+				return false;
+			}
+			if(othis.is('dt')){
+				othis.nextUntil(`dt`).each((index, item) => {
+					item = $(item);
+					if(item.hasClass(DISABLED) || item.hasClass(THIS)){
+												
+					}else{
+						item.click();
+					}
+				});
 				return false;
 			}
 			let dd = othis.is('dd') ? othis : othis.parents('dd');
@@ -723,7 +821,6 @@
 				if(!btn[0]){
 					return false;
 				}
-				//TODO 快捷操作
 				let method = btn.attr('method');
 				let obj = data[id].config.btns.filter(bean => bean.name == method)[0];
 				obj && obj.click && obj.click instanceof Function && obj.click(id, this);
@@ -771,6 +868,9 @@
 	Common.prototype.valToName = function(id, val){
 		let dl = $(`dl[xid="${id}"]`);
 		let vs = (val + "").split('/');
+		if(!vs.length){
+			return null;
+		}
 		let names = [];
 		$.each(vs, (idx, item) => {
 			let name = dl.find(`.xm-select-linkage-group${idx + 1} li[value="${item}"] span`).text();
@@ -780,12 +880,15 @@
 	}
 	
 	Common.prototype.commonHanler = function(key, label){
+		if(!label || !label[0]){
+			return ;
+		}
+		this.checkHideSpan(key, label);
 		//计算input的提示语
 		this.changePlaceHolder(label);
 		//计算高度
 		this.retop(label.parents(`.${FORM_SELECT}`));
-		this.checkHideSpan(label);
-		this.calcLeft(key, label);
+		this.calcLabelLeft(label, 0, true);
 		//表单默认值
 		label.parents(`.${PNAME}`).find(`.${HIDE_INPUT}`).val(data[key].values.map((val) => {
 			return val.val;
@@ -825,7 +928,7 @@
 	Common.prototype.handlerLabel = function(id, dd, isAdd, oval, notOn){
 		let div = $(`[xid="${id}"]`).prev().find(`.${LABEL}`),
 			val = dd && {
-				name: dd.find('span').text(),
+				name: dd.find('span').attr('name'),
 				val: dd.attr('lay-value')
 			},
 			vals = data[id].values,
@@ -840,7 +943,7 @@
 			return ;
 		}
 		if(!notOn){
-			if(on && on instanceof Function && (on(id, vals.concat([]), val, isAdd, (dd && dd.hasClass(DISABLED) == false)))) {
+			if(on && on instanceof Function && on(id, vals.concat([]), val, isAdd, dd && dd.hasClass(DISABLED)) == false) {
 				return ;
 			}
 		}
@@ -872,7 +975,7 @@
 		div.parents(`.${FORM_TITLE}`).prev().removeClass('layui-form-danger');
 		
 		//清空搜索值
-		fs.config.clearInput && div.parents(`.${PNAME}`).find(`.${INPUT}`).val('');
+		fs.config.clearInput && this.clearInput(id);
 		
 		this.commonHanler(id, div);
 	}
@@ -882,7 +985,7 @@
 		let tips = `fsw="${NAME}"`;
 		let [$label, $close] = [
 			$(`<span ${tips} value="${val.val}"><font ${tips}>${val.name}</font></span>`), 
-			$(`<i ${tips} class="xm-icon-close">×</i>`)
+			$(`<i ${tips} class="iconfont icon-close"></i>`)
 		];
 		$label.append($close);
 		//如果是radio模式
@@ -893,12 +996,8 @@
 			div.find('span').remove();
 		}
 		//如果是固定高度
-		if(fs.config.height){
-			div.append($label);
-		}else{
-			div.find('input').css('width', '50px');
-			div.find('input').before($label);
-		}
+		div.find('input').css('width', '50px');
+		div.find('input').before($label);
 	}
 	
 	Common.prototype.delLabel = function(id, div, val){
@@ -906,21 +1005,20 @@
 		div.find(`span[value="${val.val}"]:first`).remove();
 	}
 	
-	Common.prototype.calcLeft = function(id, div){
-		if(data[id].config.height){
-			let showLastSpan = div.find('span:not(.xm-span-hide):last')[0];
-			div.next().css('left', (showLastSpan ? this.getPosition(showLastSpan).x - this.getPosition(div[0]).x + showLastSpan.offsetWidth + 20 : 10) + 'px');
-		}
-	}
-	
-	Common.prototype.checkHideSpan = function(div){
+	Common.prototype.checkHideSpan = function(id, div){
 		let parentHeight = div.parents(`.${NAME}`)[0].offsetHeight + 5;
 		div.find('span.xm-span-hide').removeClass('xm-span-hide');
+		div.find('span[style]').remove();
+		
+		let count = data[id].config.showCount;
 		div.find('span').each((index, item) => {
-			if(item.offsetHeight + item.offsetTop > parentHeight || this.getPosition(item).y + item.offsetHeight > this.getPosition(div[0]).y + div[0].offsetHeight + 5){
+			if(index >= count){
 				$(item).addClass('xm-span-hide');
 			}
 		});
+		
+		let prefix = div.find(`span:eq(${count})`);
+		prefix[0] && prefix.before($(`<span style="padding-right: 6px;" fsw="${NAME}"> + ${div.find('span').length - count}</span>`))
 	}
 	
 	Common.prototype.retop = function(div){//计算dl显示的位置
@@ -940,7 +1038,7 @@
 				});
 				return ;
 			}
-			if(fs.direction == 'down'){
+			if(fs.config.direction == 'down'){
 				dl.css({
 					top: div[0].offsetTop + div.height() + base + 'px',
 					bottom: 'auto'
@@ -963,28 +1061,38 @@
 	}
 	
 	Common.prototype.changeShow = function(children, isShow){//显示于隐藏
+		$('.layui-form-selected').removeClass('layui-form-selected');
 		let top = children.parents(`.${FORM_SELECT}`);
 		$(`.${PNAME} .${FORM_SELECT}`).not(top).removeClass(FORM_SELECTED);
 		if(isShow){
 			this.retop(top);
 			top.addClass(FORM_SELECTED);
 			top.find(`.${INPUT}`).focus();
+			if(!top.find(`dl dd[lay-value]:not(.${FORM_SELECT_TIPS})`).length){
+				top.find(`dl .${FORM_NONE}`).addClass(FORM_EMPTY);
+			}
 		}else{
+			let id = top.find('dl').attr('xid');
 			top.removeClass(FORM_SELECTED);
-			top.find(`.${INPUT}`).val('');
-			top.find(`dl .layui-hide`).removeClass('layui-hide');
+			this.clearInput(id);
+			top.find(`dl .${FORM_EMPTY}`).removeClass(FORM_EMPTY);
+			top.find(`dl dd.${DD_HIDE}`).removeClass(DD_HIDE);
 			top.find(`dl dd.${TEMP}`).remove();
 			//计算ajax数据是否为空, 然后重新请求数据
-			let id = top.find('dl').attr('xid');
 			if(id && data[id] && data[id].config.isEmpty){
 				this.triggerSearch(top);
 			}
+			this.changePlaceHolder(top.find(`.${LABEL}`));
 		}
 	}
 	
 	Common.prototype.changePlaceHolder = function(div){//显示于隐藏提示语
 		//调整pane模式下的高度
 		let title = div.parents(`.${FORM_TITLE}`);
+		title[0] || (title = div.parents(`dl`).prev());
+		if(!title[0]){
+			return ;
+		}
 		
 		let id = div.parents(`.${PNAME}`).find(`dl[xid]`).attr('xid');
 		if(data[id] && data[id].config.height){//既然固定高度了, 那就看着办吧
@@ -995,10 +1103,10 @@
 			//如果是layui pane模式, 处理label的高度
 			let label = title.parents(`.${PNAME}`).parent().prev();
 			if(label.is('.layui-form-label') && title.parents('.layui-form-pane')[0]){
-				height = height > 36 ? height + 6 : height;
+				height = height > 36 ? height + 4 : height;
 				title.css('height' , height + 'px');
 				label.css({
-					height: height + 'px',
+					height: height + 2 + 'px',
 					lineHeight: (height - 18) + 'px'
 				})
 			}
@@ -1037,13 +1145,16 @@
 	
 	Common.prototype.selectAll = function(id, isOn, skipDis){
 		let dl = $(`[xid="${id}"]`);
+		if(!dl[0]){
+			return ;
+		}
 		if(dl.find('.xm-select-linkage')[0]){
 			return ;
 		}
 		dl.find(`dd[lay-value]:not(.${FORM_SELECT_TIPS}):not(.${THIS})${skipDis ? ':not(.'+DISABLED+')' :''}`).each((index, item) => {
 			item = $(item);
 			let val = {
-				name: item.find('span').text(),
+				name: item.find('span').attr('name'),
 				val: item.attr('lay-value')
 			}
 			this.handlerLabel(id, dl.find(`dd[lay-value="${val.val}"]`), true, val, !isOn);
@@ -1052,6 +1163,9 @@
 	
 	Common.prototype.removeAll = function(id, isOn, skipDis){
 		let dl = $(`[xid="${id}"]`);
+		if(!dl[0]){
+			return ;
+		}
 		if(dl.find('.xm-select-linkage')[0]){//针对多级联动的处理
 			data[id].values.concat([]).forEach((item, idx) => {
 				let vs = item.val.split('/');
@@ -1075,13 +1189,16 @@
 	
 	Common.prototype.reverse = function(id, isOn, skipDis){
 		let dl = $(`[xid="${id}"]`);
+		if(!dl[0]){
+			return ;
+		}
 		if(dl.find('.xm-select-linkage')[0]){
 			return ;
 		}
 		dl.find(`dd[lay-value]:not(.${FORM_SELECT_TIPS})${skipDis ? ':not(.'+DISABLED+')' :''}`).each((index, item) => {
 			item = $(item);
 			let val = {
-				name: item.find('span').text(),
+				name: item.find('span').attr('name'),
 				val: item.attr('lay-value')
 			}
 			this.handlerLabel(id, dl.find(`dd[lay-value="${val.val}"]`), !item.hasClass(THIS), val, !isOn);
@@ -1092,7 +1209,7 @@
 		let skins = ['default' ,'primary', 'normal', 'warm', 'danger'];
 		let skin = skins[Math.floor(Math.random() * skins.length)];
 		$(`dl[xid="${id}"]`).parents(`.${PNAME}`).find(`.${FORM_SELECT}`).attr('xm-select-skin', skin);
-		this.commonHanler(id, $(`dl[xid="${id}"]`).parents(`.${PNAME}`).find(`.${LABEL}`));
+		this.check(id) && this.commonHanler(id, $(`dl[xid="${id}"]`).parents(`.${PNAME}`).find(`.${LABEL}`));
 	}
 	
 	Common.prototype.getPosition = function(e){
@@ -1123,30 +1240,39 @@
 		});
 	}
 	
-	Common.prototype.loadingCss = function(){
-		
+	Common.prototype.bindEvent = function(name, id, fun){
+		if(id && id instanceof Function){
+			fun = id;
+			id = null;
+		}
+		if(fun && fun instanceof Function){
+			if(!id){
+				$.each(data, (id, val) => {
+					data[id] ? (data[id].config[name] = fun) : (events[name][id] = fun)				
+				})
+			}else{
+				data[id] ? (data[id].config[name] = fun) : (events[name][id] = fun)
+			}
+		}
 	}
 	
-	Common.prototype.listening = function(){//TODO 用于监听dom结构变化, 如果出现新的为渲染select, 则自动进行渲染
-		let flag = false;
-		let index = 0;
-		$(document).on('DOMNodeInserted', (e) => {
-			if(flag){//避免递归渲染
-				return ;
-			}
-			flag = true;
-			//渲染select
-			$(`select[${NAME}]`).each((index, select) => {
-				let sid = select.getAttribute(NAME);
-				common.init(select);
-				common.one($(`dl[xid="${sid}"]`).parents(`.${PNAME}`));
-				common.initVal(sid);
-			});
-			
-			flag = false;
-		});
+	Common.prototype.check = function(id){
+		if($(`dl[xid="${id}"]`).length){
+			return true;
+		}else{
+			delete data[id];
+			return false;
+		}
 	}
-
+	
+	Common.prototype.render = function(id, select){
+		if(this.check(id)){
+			select = data[id].select;
+		}
+		common.init(select);
+		common.one($(`dl[xid="${id}"]`).parents(`.${PNAME}`));
+		common.initVal(id);
+	}
 	
 	let Select4 = function(){
 		this.v = v;
@@ -1158,7 +1284,7 @@
 			return [];
 		}
 		let fs = data[id];
-		if(!fs){
+		if(!common.check(id)){
 			return [];
 		}
 		if(typeof type == 'string' || type == undefined){
@@ -1222,22 +1348,6 @@
 		}
 	}
 	
-	Common.prototype.bindEvent = function(name, id, fun){
-		if(id && id instanceof Function){
-			fun = id;
-			id = null;
-		}
-		if(fun && fun instanceof Function){
-			if(!id){
-				$.each(data, (id, val) => {
-					data[id] ? (data[id].config[name] = fun) : (events[name][id] = fun)				
-				})
-			}else{
-				data[id] ? (data[id].config[name] = fun) : (events[name][id] = fun)
-			}
-		}
-	}
-	
 	Select4.prototype.on = function(id, fun){
 		common.bindEvent('on', id, fun);
 		return this;
@@ -1266,51 +1376,72 @@
 				config.dataType = 'json';
 			}
 			id ? (
-				ajaxs[id] = $.extend(true, {}, ajax, config),
-				data[id] && (data[id].config.direction = config.direction),
+				ajaxs[id] = $.extend(true, {}, ajaxs[id] || ajax, config),
+				!common.check(id) && this.render(id),
+				data[id] && config.direction && (data[id].config.direction = config.direction),
+				data[id] && config.clearInput && (data[id].config.clearInput = true),
 				config.searchUrl && data[id] && common.triggerSearch($(`.${PNAME} dl[xid="${id}"]`).parents(`.${FORM_SELECT}`), true)
 			) : (
-				$.extend(true, ajax, config)
+				$.extend(true, ajax, config),
+				$.each(ajaxs, (key, item) => {
+					$.extend(true, item, config)
+				})
 			);
 		}
 		return this;
 	}
 	
-	Select4.prototype.render = function(id){
+	Select4.prototype.render = function(id, options){
+		if(id && typeof id == 'object'){
+			options = id;
+			id = null;
+		}
 		let target = {};
-		id ? (data[id] && (target[id] = data[id])) : data;
+		id ? (common.check(id) && (target[id] = data[id])) : (target = data);
+		
+		let config = options ? {
+			init: options.init,
+			disabled: options.disabled,
+			max: options.max,			
+			isSearch: options.isSearch,			
+			isCreate: options.isCreate,			
+			radio: options.radio,
+			skin: options.skin,
+			direction: options.direction,
+			height: options.height,
+			formname: options.formname,
+			layverify: options.layverify,
+			layverType: options.layverType,
+			searchType: options.searchType == 'dl' ? 1 : 0,			
+			showCount: options.showCount,	
+			placeholder: options.placeholder,	
+			create: options.create,			
+			filter: options.filter,			
+			maxTips: options.maxTips,			
+			on: options.on,			
+			template: options.template,		
+			clearInput: options.clearInput,		
+		} : {};
 		
 		if(Object.getOwnPropertyNames(target).length){
 			$.each(target, (key, val) => {//恢复初始值
-				let dl = $(`dl[xid="${key}"]`),
-					vals = [];
-				val.select.find('option[selected]').each((index, item) => {
-					vals.push(item.value);
-				});
-				//移除创建元素
-				dl.find(`.${CREATE_LONG}`).remove();
-				//清空INPUT
-				dl.prev().find(`.${INPUT}`).val('');
-				//触发search
-				common.triggerSearch(dl.parents(`.${FORM_SELECT}`), true);
-				//移除hidn
-				dl.find(`.layui-hide`).removeClass('layui-hide');
-				//重新赋值
-				this.value(key, vals);
+				if(common.check(key)){
+					this.value(key, []);
+					$.extend(data[key].config, config);
+					common.render(key, val.select);
+				}
 			});
 		}
 		($(`select[${NAME}="${id}"]`)[0] ? $(`select[${NAME}="${id}"]`) : $(`select[${NAME}]`)).each((index, select) => {
 			let sid = select.getAttribute(NAME);
-			common.init(select);
-			common.one($(`dl[xid="${sid}"]`).parents(`.${PNAME}`));
-			common.initVal(sid);
+			common.render(sid, select);
 		});
 		return this;
 	}
 	
 	Select4.prototype.disabled = function(id){
 		let target = {};
-		id ? (data[id] && (target[id] = data[id])) : (target = data);
+		id ? (common.check(id) && (target[id] = data[id])) : (target = {});
 		
 		$.each(target, (key, val) => {
 			$(`dl[xid="${key}"]`).prev().addClass(DIS);
@@ -1320,7 +1451,7 @@
 	
 	Select4.prototype.undisabled = function(id){
 		let target = {};
-		id ? (data[id] && (target[id] = data[id])) : (target = data);
+		id ? (common.check(id) && (target[id] = data[id])) : (target = {});
 		
 		$.each(target, (key, val) => {
 			$(`dl[xid="${key}"]`).prev().removeClass(DIS);
@@ -1332,8 +1463,8 @@
 		if(!id || !type || !config){
 			return this;
 		}
-		//检测该id是否尚未渲染
-		!data[id] && this.render(id).value(id, []);
+		!common.check(id) && this.render(id);
+		this.value(id, []);
 		this.config(id, config);
 		if(type == 'local'){
 			common.renderData(id, config.arr, config.linkage == true, config.linkageWidth ? config.linkageWidth : '100');
@@ -1344,11 +1475,15 @@
 	}
 	
 	Select4.prototype.btns = function(id, btns, config){
+		if(id && common.isArray(id)){
+			btns = id;
+			id = null;
+		}
 		if(!btns || !common.isArray(btns)) {
 			return this;
 		};
 		let target = {};
-		id ? (data[id] && (target[id] = data[id])) : (target = data);
+		id ? (common.check(id) && (target[id] = data[id])) : (target = data);
 		
 		btns = btns.map((obj) => {
 			if(typeof obj == 'string'){
@@ -1387,8 +1522,8 @@
 	}
 	
 	Select4.prototype.search = function(id, val){
-		if(id && data[id]){
-			ajaxs[id] = $.extend(true, {}, ajax, {
+		if(id && common.check(id)){
+			ajaxs[id] = $.extend(true, {}, ajaxs[id] || ajax, {
 				first: true,
 				searchVal: val
 			});
