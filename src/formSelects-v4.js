@@ -381,7 +381,7 @@
 		input.val('');
 	}
 	
-	Common.prototype.ajax = function(id, searchUrl, inputValue, isLinkage, linkageWidth, isSearch){
+	Common.prototype.ajax = function(id, searchUrl, inputValue, isLinkage, linkageWidth, isSearch, successCallback, isReplace){
 		let reElem = $(`.${PNAME} dl[xid="${id}"]`).parents(`.${FORM_SELECT}`);
 		if(!reElem[0] || !searchUrl){
 			return ;
@@ -412,10 +412,10 @@
  					reElem.find(`dd.${FORM_NONE}`).addClass(FORM_EMPTY).text(res[ajaxConfig.response.msgName]);
  				}else{
 					reElem.find(`dd.${FORM_NONE}`).removeClass(FORM_EMPTY);
-					//获得已选择的values
-					this.renderData(id, res[ajaxConfig.response.dataName], isLinkage, linkageWidth, isSearch);
+					this.renderData(id, res[ajaxConfig.response.dataName], isLinkage, linkageWidth, isSearch, isReplace);
  					data[id].config.isEmpty = res[ajaxConfig.response.dataName].length == 0;
 				}
+ 				successCallback && successCallback(id);
 				ajaxConfig.success && ajaxConfig.success instanceof Function && ajaxConfig.success(id, searchUrl, inputValue, res);
 			},
 			error: (err) => {
@@ -426,50 +426,13 @@
 		});
 	}
 	
-	Common.prototype.renderData = function(id, dataArr, linkage, linkageWidth, isSearch){
+	Common.prototype.renderData = function(id, dataArr, linkage, linkageWidth, isSearch, isReplace){
 		if(linkage){//渲染多级联动
-			let result = [],
-				index = 0,
-				temp = {"0": dataArr},
-				ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
-			db[id] = {};
-			do{
-				let group = result[index ++] = [],
-					_temp = temp;
-				temp = {};
-				$.each(_temp, (pid, arr) => {
-					$.each(arr, (idx, item) => {
-						let val = {
-							pid: pid,
-							name: item[ajaxConfig.keyName],
-							value: item[ajaxConfig.keyVal],
-						};
-						db[id][val.value] = $.extend(item, val);
-						group.push(val);
-						let children = item[ajaxConfig.keyChildren];
-						if(children && children.length){
-							temp[val.value] = children;
-						}
-					});
-				});
-			}while(Object.getOwnPropertyNames(temp).length);
-			
-			let reElem = $(`.${PNAME} dl[xid="${id}"]`).parents(`.${FORM_SELECT}`);
-			let html = ['<div class="xm-select-linkage">'];
-			
-			$.each(result, (idx, arr) => {
-				let groupDiv = [`<div style="left: ${(linkageWidth-0) * idx}px;" class="xm-select-linkage-group xm-select-linkage-group${idx + 1} ${idx != 0 ? 'xm-select-linkage-hide':''}">`];
-				$.each(arr, (idx2, item) => {
-					let span = `<li title="${item.name}" pid="${item.pid}" xm-value="${item.value}"><span>${item.name}</span></li>`;
-					groupDiv.push(span);
-				});
-				groupDiv.push(`</div>`);
-				html = html.concat(groupDiv);
-			});
-			html.push('<div style="clear: both; height: 288px;"></div>');
-			html.push('</div>');
-			reElem.find('dl').html(html.join(''));
-			reElem.find(`.${INPUT}`).css('display', 'none');//联动暂时不支持搜索
+			this.renderLinkage(id, dataArr, linkageWidth);
+			return;
+		}
+		if(isReplace){
+			this.renderReplace(id, dataArr);
 			return;
 		}
 		
@@ -480,12 +443,6 @@
 		dataArr = this.exchangeData(id, dataArr);
 		let values = [];
 		reElem.find('dl').html(this.renderSelect(id, pcInput.attr('placeholder') || pcInput.attr('back'), dataArr.map((item) => {
-			if(item[ajaxConfig.keySel]){
-				values.push({
-					name: item[ajaxConfig.keyName],
-					value: item[ajaxConfig.keyVal],
-				});
-			}
 			let itemVal = $.extend({}, item, {
 				innerHTML: item[ajaxConfig.keyName],
 				value: item[ajaxConfig.keyVal],
@@ -494,6 +451,9 @@
 				type: item.type,
 				name: item[ajaxConfig.keyName]
 			});
+			if(itemVal.sel){
+				values.push(itemVal);
+			}
 			return itemVal;
 		})));
 
@@ -520,6 +480,74 @@
 		}
 		this.commonHandler(id, label);
 	}
+	
+	Common.prototype.renderLinkage = function(id, dataArr, linkageWidth){
+		let result = [],
+			index = 0,
+			temp = {"0": dataArr},
+			ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
+		db[id] = {};
+		do{
+			let group = result[index ++] = [],
+				_temp = temp;
+			temp = {};
+			$.each(_temp, (pid, arr) => {
+				$.each(arr, (idx, item) => {
+					let val = {
+						pid: pid,
+						name: item[ajaxConfig.keyName],
+						value: item[ajaxConfig.keyVal],
+					};
+					db[id][val.value] = $.extend(item, val);
+					group.push(val);
+					let children = item[ajaxConfig.keyChildren];
+					if(children && children.length){
+						temp[val.value] = children;
+					}
+				});
+			});
+		}while(Object.getOwnPropertyNames(temp).length);
+		
+		let reElem = $(`.${PNAME} dl[xid="${id}"]`).parents(`.${FORM_SELECT}`);
+		let html = ['<div class="xm-select-linkage">'];
+		
+		$.each(result, (idx, arr) => {
+			let groupDiv = [`<div style="left: ${(linkageWidth-0) * idx}px;" class="xm-select-linkage-group xm-select-linkage-group${idx + 1} ${idx != 0 ? 'xm-select-linkage-hide':''}">`];
+			$.each(arr, (idx2, item) => {
+				let span = `<li title="${item.name}" pid="${item.pid}" xm-value="${item.value}"><span>${item.name}</span></li>`;
+				groupDiv.push(span);
+			});
+			groupDiv.push(`</div>`);
+			html = html.concat(groupDiv);
+		});
+		html.push('<div style="clear: both; height: 288px;"></div>');
+		html.push('</div>');
+		reElem.find('dl').html(html.join(''));
+		reElem.find(`.${INPUT}`).css('display', 'none');//联动暂时不支持搜索
+	}
+	
+	Common.prototype.renderReplace = function(id, dataArr){
+		let dl = $(`.${PNAME} dl[xid="${id}"]`);
+		let ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
+
+		dataArr = this.exchangeData(id, dataArr);
+		db[id] = dataArr;
+		
+		let html = dataArr.map((item) => {
+			let itemVal = $.extend({}, item, {
+				innerHTML: item[ajaxConfig.keyName],
+				value: item[ajaxConfig.keyVal],
+				sel: item[ajaxConfig.keySel],
+				disabled: item[ajaxConfig.keyDis],
+				type: item.type,
+				name: item[ajaxConfig.keyName]
+			});
+			return this.createDD(id, itemVal);
+		}).join('');
+		
+		dl.find(`dd:not(.${FORM_SELECT_TIPS}),dt:not([style])`).remove();
+		dl.find(`dt[style]`).after($(html));
+	}
 
 	Common.prototype.exchangeData = function(id, arr){//这里处理树形结构
 	    let ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
@@ -531,11 +559,17 @@
 	}
 
 	Common.prototype.getChildrenList = function(arr, childrenName, disabledName, pid, disabled){
-	    let result = [];
+	    let result = [], offset = 0;
 	    for(let a = 0; a < arr.length; a ++){
             let item = arr[a];
+            if(item.type && item.type == 'optgroup'){
+            	result.push(item);
+            	continue;
+            }else{
+            	offset ++;
+            }
             let parentIds = pid.concat([]);
-            parentIds.push(a);
+            parentIds.push(`${offset - 1}_E`);
             item[FORM_TEAM_PID] = JSON.stringify(parentIds);
             item[disabledName] = item[disabledName] || disabled;
             result.push(item);
@@ -545,8 +579,6 @@
                 let pidArr = parentIds.concat([]);
                 let childResult = this.getChildrenList(child, childrenName, disabledName, pidArr, item[disabledName]);
                 result = result.concat(childResult);
-            }else{
-            	parentIds = [];
             }
         }
         return result;
@@ -767,7 +799,7 @@
 			}
 			//如果点击的是x按钮
 			if(othis.is(`i[fsw="${NAME}"]`)){
-				let val = this.getItem(id, othis.parent().attr("value")),
+				let val = this.getItem(id, othis),
 				dd = dl.find(`dd[lay-value='${val.value}']`);
 				if(dd.hasClass(DISABLED)){//如果是disabled状态, 不可选, 不可删
 					return false;
@@ -938,7 +970,18 @@
 	let db = {};
 	Common.prototype.getItem = function(id, value){
 		if(value instanceof $){
-			value = value.attr('lay-value');
+			if(value.is(`i[fsw="${NAME}"]`)){
+				let span = value.parent();
+				return db[id][value] || {
+					name: span.find('font').text(),
+					value: span.attr('value')
+				}
+			}
+			let val = value.attr('lay-value');
+			return !db[id][val] ? (db[id][val] = {
+				name: value.find('span[name]').attr('name'),
+				value: val
+			}) : db[id][val];
 		}else if(typeof(value) == 'string' && value.indexOf('/') != -1){
 			return db[id][value] || {
 				name: this.valToName(id, value),
@@ -1153,31 +1196,21 @@
 		
 		let fs = data[dl.attr('xid')];
 		let base = dl.parents('.layui-form-pane')[0] && dl.prev()[0].clientHeight > 38 ? 14 : 10;
-		if(fs){
-			if(fs.config.direction == 'up'){
-				dl.css({
-					top: 'auto',
-					bottom: '42px'
-				});
-				return ;
-			}
-			if(fs.config.direction == 'down'){
-				dl.css({
-					top: div[0].offsetTop + div.height() + base + 'px',
-					bottom: 'auto'
-				});
-				return ;
+		if((fs && fs.config.direction == 'up') || up){
+			up = true;
+			if((fs && fs.config.direction == 'down')){
+				up = false;
 			}
 		}
-		
+		let reHeight = div[0].offsetTop + div.height() + base;
 		if(up) {
 			dl.css({
 				top: 'auto',
-				bottom: '42px'
+				bottom: reHeight + 3 + 'px',
 			});
 		} else {
 			dl.css({
-				top: div[0].offsetTop + div.height() + base + 'px',
+				top: reHeight + 'px',
 				bottom: 'auto'
 			});
 		}
@@ -1229,7 +1262,7 @@
 						
 		}else{
 			let height = title.find(`.${NAME}`)[0].clientHeight;
-			title.css('height' , (height > 34 ? height + 4 : height) + 'px');
+			title.css('height' , (height > 36 ? height + 4 : height) + 'px');
 			//如果是layui pane模式, 处理label的高度
 			let label = title.parents(`.${PNAME}`).parent().prev();
 			if(label.is('.layui-form-label') && title.parents('.layui-form-pane')[0]){
@@ -1380,9 +1413,14 @@
 		}
 	}
 	
-	Common.prototype.check = function(id){
-		if($(`dl[xid="${id}"]`).length || $(`select[xm-select="${id}"]`).length) {
+	Common.prototype.check = function(id, notAutoRender){
+		if($(`dl[xid="${id}"]`).length) {
 			return true;
+		}else if($(`select[xm-select="${id}"]`).length){
+			if(!notAutoRender){
+				this.render(id, $(`select[xm-select="${id}"]`));
+				return true;
+			}
 		}else{
 			delete data[id];
 			return false;
@@ -1393,6 +1431,10 @@
 		common.init(select);
 		common.one($(`dl[xid="${id}"]`).parents(`.${PNAME}`));
 		common.initVal(id);
+	}
+	
+	Common.prototype.log = function(obj){
+		console.log(obj);
 	}
 	
 	let Select4 = function(){
@@ -1553,12 +1595,9 @@
 		
 		options && options.searchType != undefined && (config.searchType = options.searchType == 'dl' ? 1 : 0);
 		
-		if(id && !common.check(id)) {
-			return this;
-		}
 		if(id){
 			fsConfigs[id] = {};
-			$.extend(fsConfigs[id], data[id].config, config);
+			$.extend(fsConfigs[id], data[id] ? data[id].config : {}, config);
 		}else{
 			$.extend(fsConfig, config);
 		}
@@ -1593,9 +1632,13 @@
 	
 	Select4.prototype.data = function(id, type, config){
 		if(!id || !type || !config){
+			common.log(`id: ${id} param error !!!`)
 			return this;
 		}
-		!common.check(id) && this.render(id);
+		if(!common.check(id)){
+			common.log(`id: ${id} not render !!!`)
+			return this;
+		}
 		this.value(id, []);
 		this.config(id, config);
 		if(type == 'local'){
@@ -1662,6 +1705,28 @@
 			common.triggerSearch($(`dl[xid="${id}"]`).parents(`.${FORM_SELECT}`), true);
 		}
 		return this;
+	}
+	
+	Select4.prototype.replace = function(id, type, config){
+		if(!id || !type || !config){
+			common.log(`id: ${id} param error !!!`)
+			return this;
+		}
+		if(!common.check(id, true)){
+			common.log(`id: ${id} not render !!!`)
+			return this;
+		}
+		let oldVals = this.value(id, 'val');
+		this.value(id, []);
+		this.config(id, config);
+		if(type == 'local'){
+			common.renderData(id, config.arr, config.linkage == true, config.linkageWidth ? config.linkageWidth : '100', false, true);
+			this.value(id, oldVals, true);
+		}else if(type == 'server'){
+			common.ajax(id, config.url, config.keyword, config.linkage == true, config.linkageWidth ? config.linkageWidth : '100', false, (id) => {
+				this.value(id, oldVals, true);
+			}, true);
+		}
 	}
 	
 	return new Select4();
