@@ -7,7 +7,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 /**
  * name: formSelects
  * 基于Layui Select多选
- * version: 4.0.0.0817
+ * version: 4.0.0.0910
  * http://sun.faysunshine.com/layui/formSelects-v4/dist/formSelects-v4.js
  */
 (function (layui, window, factory) {
@@ -26,7 +26,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 		window.formSelects = factory();
 	}
 })(typeof layui == 'undefined' ? null : layui, window, function () {
-	var v = '4.0.0.0817',
+	var v = '4.0.0.0910',
 	    NAME = 'xm-select',
 	    PNAME = 'xm-select-parent',
 	    INPUT = 'xm-select-input',
@@ -153,8 +153,8 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 			create: function create(id, name) {
 				return Date.now();
 			},
-			template: function template(name, value, selected, disabled) {
-				return name;
+			template: function template(id, item) {
+				return item.name;
 			},
 			showCount: 0,
 			isCreate: false,
@@ -669,9 +669,16 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 	};
 
 	Common.prototype.createDD = function (id, item, clz) {
+		var ajaxConfig = ajaxs[id] ? ajaxs[id] : ajax;
 		var name = $.trim(item.innerHTML);
-		db[id][item.value] = $(item).is('option') ? { name: name, value: item.value } : item;
-		var template = data[id].config.template(name);
+		db[id][item.value] = $(item).is('option') ? item = function () {
+			var resultItem = {};
+			resultItem[ajaxConfig.keyName] = name;
+			resultItem[ajaxConfig.keyVal] = item.value;
+			resultItem[ajaxConfig.keyDis] = item.disabled;
+			return resultItem;
+		}() : item;
+		var template = data[id].config.template(id, item);
 		var pid = item[FORM_TEAM_PID];
 		pid ? pid = JSON.parse(pid) : pid = [-1];
 		var attr = pid[0] == -1 ? '' : 'tree-id="' + pid.join('-') + '" tree-folder="' + !!item['XM_TREE_FOLDER'] + '"';
@@ -867,7 +874,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 			var othis = $(e.target);
 			if (othis.is('.' + LINKAGE) || othis.parents('.' + LINKAGE)[0]) {
 				//linkage的处理
-				othis = othis.is('li') ? othis : othis.parents('li');
+				othis = othis.is('li') ? othis : othis.parents('li[xm-value]');
 				var _group = othis.parents('.xm-select-linkage-group'),
 				    _id = othis.parents('dl').attr('xid');
 				if (!_id) {
@@ -1385,7 +1392,7 @@ function _defineProperty(obj, key, value) { if (key in obj) { Object.definePrope
 				    index = 0;
 				do {
 					pid = vs[index++];
-					li = dl.find('.xm-select-linkage-group' + index + ':not(.xm-select-linkage-hide) li[value="' + pid + '"]');
+					li = dl.find('.xm-select-linkage-group' + index + ':not(.xm-select-linkage-hide) li[xm-value="' + pid + '"]');
 					li.click();
 				} while (li.length && pid != undefined);
 			});
